@@ -3,10 +3,20 @@ from core.api.serializers import TransactionSerializer
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
-    
-class SingleTransaction(APIView):
+
+class NewTransaction(APIView):
     """
-    Retrieve, update, or delete a single transaction instance.
+    Post a transaction instance.
+    """
+    def post(self, request, format=None):
+        serializer = TransactionSerializer(data=request.data)
+        if serializer.is_valid()
+            serializer.save()
+            return Response(serializer.data)
+
+class ExistingTransaction(APIView):
+    """
+    Retrieve, update, or delete an existing transaction instance.
     """
     def get_object(self, pk):
         try:
