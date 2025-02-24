@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from core.models import Transaction
+from core.models import Txn
 
-class TransactionSerializer(serializers.ModelSerializer):
+class TxnSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Transaction
+        model = Txn
         fields = '__all__'

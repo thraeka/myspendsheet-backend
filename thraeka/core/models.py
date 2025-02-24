@@ -1,7 +1,6 @@
 from django.db import models
 
-class Transaction(models.Model):
-    id = models.IntegerField(primary_key=True)
+class Txn(models.Model):
     date = models.DateField()
     description = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=9, decimal_places=2)
