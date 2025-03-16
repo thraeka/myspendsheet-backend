@@ -1,8 +1,11 @@
-from core.api import views
-from django.urls import path
+from core.api.views import Txn, TxnFile
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r"txn", Txn)
 
 urlpatterns = [
-    path("txn/", views.NewTxn.as_view(), name="txn"),
-    path("txn/<int:pk>/", views.ExistingTxn.as_view(), name="txn_mod"),
-    path("txnfile/", views.TxnFile.as_view(), name="txnfile"),
+    path("", include(router.urls)),
+    path("txnfile/", TxnFile.as_view(), name="txnfile"),
 ]
