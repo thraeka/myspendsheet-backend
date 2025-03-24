@@ -1,6 +1,23 @@
 from django.db import models
 
+
 class Txn(models.Model):
+    """
+    Model representing transaction (txn)
+
+    This model stores info on individual txn: date, description, amount, category, source,
+    and the date of input.
+
+    Attributes:
+        date (DateField): date of txn
+        description (CharField): short description of txn
+        amount (DecimalField): txn amount in $
+        category (CharField): category of txn
+        source (CharField): source of txn (i.e bank, cash)
+        source_name (CharField): name of source
+        date_of_input (DateField): date the txn was recorded
+    """
+
     date = models.DateField()
     description = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=9, decimal_places=2)
