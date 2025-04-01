@@ -135,3 +135,16 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Caching
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",  # A unique identifier for the cache
+        "TIMEOUT": 1800,  # Cache timeout in seconds (30 minutes)
+        "OPTIONS": {
+            "MAX_ENTRIES": 1000,  # Limit the number of cache entries
+            "CULL_FREQUENCY": 3,  # Remove 1/3 of entries when max is reached
+        },
+    }
+}

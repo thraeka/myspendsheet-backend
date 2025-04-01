@@ -1,9 +1,13 @@
 import json
+from datetime import date, datetime
+from typing import Any
 
 import pymupdf
 from config.settings import OPENAI_API_KEY
 from core.models import Txn
+from django.core.cache import cache
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.db.models import Sum
 from openai import OpenAI
 
 
@@ -111,3 +115,97 @@ class TxnFileParser:
         Parse a txn pdf file into list[dict]
         """
         return self.pdf_parser.txn_file_to_dict(txn_file)
+
+
+class SummaryCache:
+    """
+    Manage caching of txn summaries over date range
+
+    Method:
+        Public:
+            - get txn summary for date range
+            - update txn summaries with input txn
+        Private:
+            - generate summary cache key
+            - save data to cache
+            - save summary cache key to cache key set
+            - calculate summary from database
+
+    Attribute:
+        SUMMARY_CACHE_KEY_LIST (str): Cache key for set of summary cache keys
+
+    To Do:
+        - clean up cache key list if associated cache does not exist
+        - current update does not take in old data, therefore two cache access to update: remove
+        old txn details and add new txn details. Improve so only 1 cache access is required
+        - error checking
+        - add locks
+
+    """
+
+    SUMMARY_CACHE_KEY_LIST = "filter"
+
+    def _gen_summary_cache_key(self, start_date: date, end_date: date) -> str:
+        """Generate txn summary cache key"""
+        return f"summary:{start_date}_to_{end_date}"
+
+    def _save_to_cache(self, cache_key: str, data: Any) -> None:
+        """Save to data to cache"""
+        cache.set(cache_key, data, timeout=1800)
+
+    def _save_summary_cache_key(self, cache_key: str) -> None:
+        """Add txn summary cache key to cache key set"""
+        summary_cache_keys = cache.get(self.SUMMARY_CACHE_KEY_LIST) or set()
+        summary_cache_keys.add(cache_key)
+        cache.set(self.SUMMARY_CACHE_KEY_LIST, summary_cache_keys, timeout=1800)
+
+    def _calc_summary(self, start_date: date, end_date: date) -> dict[str, Any]:
+        """Calculate the txn summary within date range from database"""
+        txns = Txn.objects.filter(date__gte=start_date, date__lte=end_date)
+
+        total = round(txns.aggregate(total=Sum("amount"))["total"], 2)
+        total_by_cat = txns.values("category").annotate(total=Sum("amount"))
+        category_totals = {
+            item["category"]: round(item["total"], 2) for item in total_by_cat
+        }
+
+        return {
+            "date_range": [start_date, end_date],
+            "total": total,
+            "total_by_cat": category_totals,
+        }
+
+    def get(self, start_date: date, end_date: date) -> dict[str, Any]:
+        """Get cached txn summary or calculate if not available"""
+        cache_key = self._gen_summary_cache_key(start_date, end_date)
+        summary = cache.get(cache_key)
+
+        if summary is None:
+            summary = self._calc_summary(start_date, end_date)
+            self._save_to_cache(cache_key, summary)
+            self._save_summary_cache_key(cache_key)
+        return summary
+
+    def update(self, txn_date: date, amount: float, category_name: str) -> None:
+        """Update all cached txn summary"""
+        # Get set all cached txn summary keys
+        summary_cache_keys = cache.get(self.SUMMARY_CACHE_KEY_LIST)
+        if summary_cache_keys is None:
+            return
+        for summary_cache_key in summary_cache_keys:
+            # Summary cache key contains start and end date
+            start_date = datetime.strptime(summary_cache_key[8:18], "%Y-%m-%d").date()
+            end_date = datetime.strptime(summary_cache_key[22:32], "%Y-%m-%d").date()
+            # If txn date is within current txn summary range, update
+            if not (start_date <= txn_date <= end_date):
+                continue
+            summary = cache.get(summary_cache_key)
+            if summary:
+                summary["total"] += amount
+                if category_name in summary["total_by_cat"]:
+                    summary["total_by_cat"][category_name] += amount
+                else:
+                    summary["total_by_cat"][category_name] = amount
+                if summary["total_by_cat"][category_name] <= 0:
+                    summary["total_by_cat"].pop(category_name)
+                self._save_to_cache(summary_cache_key, summary)
