@@ -36,7 +36,7 @@ class OpenAIParser:
             "Don't even label it as a json. The fields for the"
             f"transactions are {self.fields}. Date should be insame format"
             "as datetime strftime('%Y-%m-%d'). Categories for the "
-            f"transactions are {self.categories}."
+            f"transactions are {self.categories}. Spending is positive amount."
         )
 
     @property
