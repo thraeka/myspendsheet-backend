@@ -39,7 +39,7 @@ class TxnViewSet(ModelViewSet):
 
     def perform_create(self, serializer: TxnSerializer) -> None:
         """Create a new txn and update the summary cache"""
-        serializer.save()
+        serializer.save(user=self.request.user)
         self.summary_cache.update(
             serializer.validated_data["date"],
             serializer.validated_data["amount"],
@@ -55,7 +55,7 @@ class TxnViewSet(ModelViewSet):
             -1 * serializer.instance.amount,
             serializer.instance.category,
         )
-        serializer.save()
+        serializer.save(user=self.request.user)
         # Update summary cache to add new txn values
         self.summary_cache.update(
             serializer.instance.date,
@@ -109,7 +109,7 @@ class TxnFile(APIView):
         txn_file_dict = self.parser.txn_file_to_dict(request.data.get("file"))
         serializer = TxnSerializer(data=txn_file_dict, many=True)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(user=self.request.user)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

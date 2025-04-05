@@ -3,6 +3,7 @@ from datetime import date
 from typing import Any, Dict
 
 import pytest
+from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -16,6 +17,11 @@ def api_client() -> APIClient:
         APIClient: An instance of the Django REST framework test client.
     """
     return APIClient()
+
+
+@pytest.fixture
+def user(db):
+    return User.objects.create_user(username="testuser", password="password")
 
 
 @pytest.fixture
@@ -40,7 +46,7 @@ def format_resp_data(resp_data: Dict[str, Any]) -> Dict[str, Any]:
     return formatted_resp_data
 
 
-def test_txn_api(api_client: APIClient, txn_case_mod: Dict[str, Any], db):
+def test_txn_api(api_client: APIClient, user, txn_case_mod: Dict[str, Any], db):
     """
     Test the txn CRUD API and summary API
 
@@ -56,6 +62,9 @@ def test_txn_api(api_client: APIClient, txn_case_mod: Dict[str, Any], db):
         txn_case_mod (Dict[str, Any]): The modifications of test_txn_1
         db: The database fixture for interacting with the test database.
     """
+
+    login = api_client.login(username="testuser", password="password")
+    assert login is True
     # Test posting a txn from today to db
     today = date.today()
     before_today = date(2025, 3, 20)
@@ -73,7 +82,7 @@ def test_txn_api(api_client: APIClient, txn_case_mod: Dict[str, Any], db):
     url = reverse("txn-list")
     response = api_client.post(url, data=test_txn_1, format="json")
 
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Error code: {response.data}"
     assert response.data == {
         "id": 1,
         "date": end_date,

@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 import pytest
+from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -17,7 +18,12 @@ def api_client() -> APIClient:
     return APIClient()
 
 
-def test_post_txn_pdf(api_client: APIClient, db):
+@pytest.fixture
+def user(db):
+    return User.objects.create_user(username="testuser", password="password")
+
+
+def test_post_txn_pdf(api_client: APIClient, user, db):
     """
     Test the endpoint for uploading a txn PDF (bank statement) and retrieving the parsed txn.
 
@@ -28,6 +34,9 @@ def test_post_txn_pdf(api_client: APIClient, db):
         api_client (APIClient): The API client fixture for making HTTP requests.
         db: The database fixture for interacting with the test database.
     """
+    login = api_client.login(username="testuser", password="password")
+    assert login is True
+
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     # Test post txn file

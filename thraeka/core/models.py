@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db import models
 
 
@@ -16,8 +17,13 @@ class Txn(models.Model):
         source (CharField): source of txn (i.e bank, cash)
         source_name (CharField): name of source
         date_of_input (DateField): date the txn was recorded
+
+    TODO:
+        - create model for categories per user with default instances
+        - create model for tags per user
     """
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="txns")
     date = models.DateField()
     description = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=9, decimal_places=2)
