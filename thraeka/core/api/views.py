@@ -1,16 +1,31 @@
 from datetime import datetime
 
-from core.api.serializers import SummarySerializer, TxnSerializer
+from core.api.serializers import SummarySerializer, TxnSerializer, UserSerializer
 from core.api.services import SummaryCache, TxnFileParser
 from core.models import Txn
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.filters import OrderingFilter
+from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+
+
+class CreateUserView(CreateAPIView):
+    """
+    API view to create user
+
+    TODO:
+        - add throttling (please dont ddos me)
+        - setup unique email
+        - password reset
+        - captcha
+    """
+
+    serializer_class = UserSerializer
 
 
 class TxnViewSet(ModelViewSet):

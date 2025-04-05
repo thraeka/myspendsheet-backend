@@ -62,6 +62,10 @@ def test_txn_api(api_client: APIClient, user, txn_case_mod: Dict[str, Any], db):
         txn_case_mod (Dict[str, Any]): The modifications of test_txn_1
         db: The database fixture for interacting with the test database.
     """
+    signup_url = reverse("signup")
+    user_info = {"username": "test", "password": "password"}
+    response = api_client.post(signup_url, data=user_info, format="json")
+    assert response.status_code == 201, f"Error code: {response.data}"
 
     login = api_client.login(username="testuser", password="password")
     assert login is True

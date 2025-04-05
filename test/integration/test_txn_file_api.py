@@ -34,6 +34,11 @@ def test_post_txn_pdf(api_client: APIClient, user, db):
         api_client (APIClient): The API client fixture for making HTTP requests.
         db: The database fixture for interacting with the test database.
     """
+    signup_url = reverse("signup")
+    user_info = {"username": "test", "password": "password"}
+    response = api_client.post(signup_url, data=user_info, format="json")
+    assert response.status_code == 201, f"Error code: {response.data}"
+
     login = api_client.login(username="testuser", password="password")
     assert login is True
 
