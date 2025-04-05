@@ -5,6 +5,7 @@ from typing import Any
 import pymupdf
 from config.settings import OPENAI_API_KEY
 from core.models import Txn
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db.models import Sum
@@ -143,25 +144,27 @@ class SummaryCache:
 
     """
 
-    SUMMARY_CACHE_KEY_LIST = "filter"
+    SUMMARY_CACHE_MAP = "filter"
 
-    def _gen_summary_cache_key(self, start_date: date, end_date: date) -> str:
+    def _gen_summary_cache_key(self, user: str, start_date: str, end_date: str) -> str:
         """Generate txn summary cache key"""
-        return f"summary:{start_date}_to_{end_date}"
+        return f"{user}:summary:{start_date}:{end_date}"
 
     def _save_to_cache(self, cache_key: str, data: Any) -> None:
         """Save to data to cache"""
         cache.set(cache_key, data, timeout=1800)
 
-    def _save_summary_cache_key(self, cache_key: str) -> None:
+    def _save_summary_cache_key(self, user: str, cache_key: str) -> None:
         """Add txn summary cache key to cache key set"""
-        summary_cache_keys = cache.get(self.SUMMARY_CACHE_KEY_LIST) or set()
-        summary_cache_keys.add(cache_key)
-        cache.set(self.SUMMARY_CACHE_KEY_LIST, summary_cache_keys, timeout=1800)
+        summary_cache_map = cache.get(self.SUMMARY_CACHE_MAP) or {}
+        summary_cache_map.setdefault(user, set()).add(cache_key)
+        cache.set(self.SUMMARY_CACHE_MAP, summary_cache_map, timeout=1800)
 
-    def _calc_summary(self, start_date: date, end_date: date) -> dict[str, Any]:
+    def _calc_summary(
+        self, user: User, start_date: date, end_date: date
+    ) -> dict[str, Any]:
         """Calculate the txn summary within date range from database"""
-        txns = Txn.objects.filter(date__gte=start_date, date__lte=end_date)
+        txns = user.txns.filter(date__gte=start_date, date__lte=end_date)
 
         total = round(txns.aggregate(total=Sum("amount"))["total"], 2)
         total_by_cat = txns.values("category").annotate(total=Sum("amount"))
@@ -175,27 +178,30 @@ class SummaryCache:
             "total_by_cat": category_totals,
         }
 
-    def get(self, start_date: date, end_date: date) -> dict[str, Any]:
+    def get(self, user: User, start_date: date, end_date: date) -> dict[str, Any]:
         """Get cached txn summary or calculate if not available"""
-        cache_key = self._gen_summary_cache_key(start_date, end_date)
+        cache_key = self._gen_summary_cache_key(user.username, start_date, end_date)
         summary = cache.get(cache_key)
 
         if summary is None:
-            summary = self._calc_summary(start_date, end_date)
+            summary = self._calc_summary(user, start_date, end_date)
             self._save_to_cache(cache_key, summary)
-            self._save_summary_cache_key(cache_key)
+            self._save_summary_cache_key(user.username, cache_key)
         return summary
 
-    def update(self, txn_date: date, amount: float, category_name: str) -> None:
+    def update(
+        self, user: User, txn_date: date, amount: float, category_name: str
+    ) -> None:
         """Update all cached txn summary"""
         # Get set all cached txn summary keys
-        summary_cache_keys = cache.get(self.SUMMARY_CACHE_KEY_LIST)
-        if summary_cache_keys is None:
+        summary_cache_map = cache.get(self.SUMMARY_CACHE_MAP)
+        if summary_cache_map is None or user.username not in summary_cache_map:
             return
-        for summary_cache_key in summary_cache_keys:
+        for summary_cache_key in summary_cache_map[user.username]:
             # Summary cache key contains start and end date
-            start_date = datetime.strptime(summary_cache_key[8:18], "%Y-%m-%d").date()
-            end_date = datetime.strptime(summary_cache_key[22:32], "%Y-%m-%d").date()
+            _, _, start_date_str, end_date_str = summary_cache_key.split(":")
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
             # If txn date is within current txn summary range, update
             if not (start_date <= txn_date <= end_date):
                 continue

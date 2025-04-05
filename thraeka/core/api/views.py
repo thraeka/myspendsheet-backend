@@ -56,6 +56,7 @@ class TxnViewSet(ModelViewSet):
         """Create a new txn and update the summary cache"""
         serializer.save(user=self.request.user)
         self.summary_cache.update(
+            self.request.user,
             serializer.validated_data["date"],
             serializer.validated_data["amount"],
             serializer.validated_data["category"],
@@ -66,6 +67,7 @@ class TxnViewSet(ModelViewSet):
         # Update summary cache to remove old txn values
         # TO DO: Update logic to remove two cache access
         self.summary_cache.update(
+            self.request.user,
             serializer.instance.date,
             -1 * serializer.instance.amount,
             serializer.instance.category,
@@ -73,6 +75,7 @@ class TxnViewSet(ModelViewSet):
         serializer.save(user=self.request.user)
         # Update summary cache to add new txn values
         self.summary_cache.update(
+            self.request.user,
             serializer.instance.date,
             serializer.instance.amount,
             serializer.instance.category,
@@ -82,7 +85,7 @@ class TxnViewSet(ModelViewSet):
         """Delete txn from DB and update the summary cache"""
         instance.delete()
         self.summary_cache.update(
-            instance.date, -1 * instance.amount, instance.category
+            self.request.user, instance.date, -1 * instance.amount, instance.category
         )
 
 
@@ -124,7 +127,7 @@ class TxnFile(APIView):
         txn_file_dict = self.parser.txn_file_to_dict(request.data.get("file"))
         serializer = TxnSerializer(data=txn_file_dict, many=True)
         if serializer.is_valid():
-            serializer.save(user=self.request.user)
+            serializer.save(user=request.user)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -153,7 +156,7 @@ class SummaryView(APIView):
                 {"error": "Invalid date format. Use YYYY-MM-DD."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        summary_data = self.summary_cache.get(start, end)
+        summary_data = self.summary_cache.get(request.user, start, end)
         serializer = SummarySerializer(data=summary_data)
         if serializer.is_valid():
             return Response(serializer.data)
