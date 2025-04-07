@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.filters import OrderingFilter
 from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -40,7 +41,6 @@ class TxnViewSet(ModelViewSet):
         - add pagination
     """
 
-    queryset = Txn.objects.all()
     serializer_class = TxnSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = {
@@ -49,8 +49,12 @@ class TxnViewSet(ModelViewSet):
     }
     ordering_fields = ["amount", "date"]
     ordering = ["-date"]
+    permission_classes = [IsAuthenticated]
 
     summary_cache = SummaryCache()
+
+    def get_queryset(self):
+        return self.request.user.txns.all()
 
     def perform_create(self, serializer: TxnSerializer) -> None:
         """Create a new txn and update the summary cache"""
@@ -104,6 +108,7 @@ class TxnFile(APIView):
     """
 
     parser = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
 
     def __init__(self):
         """
@@ -143,6 +148,8 @@ class SummaryView(APIView):
     To Do:
         - better error checking ie date range
     """
+
+    permission_classes = [IsAuthenticated]
 
     summary_cache = SummaryCache()
 

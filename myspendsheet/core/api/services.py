@@ -166,7 +166,7 @@ class SummaryCache:
         """Calculate the txn summary within date range from database"""
         txns = user.txns.filter(date__gte=start_date, date__lte=end_date)
 
-        total = round(txns.aggregate(total=Sum("amount"))["total"], 2)
+        total = round(txns.aggregate(total=Sum("amount"))["total"] or 0.00, 2)
         total_by_cat = txns.values("category").annotate(total=Sum("amount"))
         category_totals = {
             item["category"]: round(item["total"], 2) for item in total_by_cat
