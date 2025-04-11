@@ -193,7 +193,7 @@ class SummaryCache:
     def update(
         self, user: User, txn_date: date, amount: Decimal, category_name: str
     ) -> None:
-        """Update all cached txn summary"""
+        """Update all cached txn summary with txn."""
         # Get set all cached txn summary keys
         summary_cache_map = cache.get(self.SUMMARY_CACHE_MAP)
         if summary_cache_map is None or user.username not in summary_cache_map:
@@ -208,9 +208,9 @@ class SummaryCache:
                 continue
             summary = cache.get(summary_cache_key)
             if summary:
-                summary["total"] += amount
+                summary["total"] = round(summary["total"] + amount, 2)
                 if category_name in summary["total_by_cat"]:
-                    summary["total_by_cat"][category_name] += amount
+                    summary["total_by_cat"][category_name] = round(summary["total_by_cat"][category_name] + amount, 2)
                 else:
                     summary["total_by_cat"][category_name] = amount
                 if summary["total_by_cat"][category_name] <= 0:
