@@ -11,9 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -154,16 +156,18 @@ CACHES = {
     }
 }
 
-#CORS
-from corsheaders.defaults import default_headers
-
+# CORS
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://myspendsheet.com",
+    "https://www.myspendsheet.com",
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
-    'Authorization',
+    "Authorization",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Simple JWT settings
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(hours=24)}
