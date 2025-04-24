@@ -1,153 +1,104 @@
-from copy import deepcopy
-from datetime import date
-from typing import Any, Dict
-
 import pytest
-from django.contrib.auth.models import User
 from django.urls import reverse
+from integration.int_test_util import post_txn
 from rest_framework.test import APIClient
 
+pytestmark = pytest.mark.django_db
 
-@pytest.fixture
-def api_client() -> APIClient:
-    """
-    Fixture to provide a reusable API client for making HTTP requests.
-
-    Returns:
-        APIClient: An instance of the Django REST framework test client.
-    """
-    return APIClient()
+####################
+# Tests
+####################
 
 
-@pytest.fixture
-def user(db):
-    return User.objects.create_user(username="testuser", password="password")
+def test_no_auth(client: APIClient, txn: dict) -> None:
+    """Test Case: No auth"""
+    client.credentials()
+    resp = post_txn(client, txn)
+    assert resp.status_code == 401
 
 
-@pytest.fixture
-def txn_case_mod() -> Dict[str, Any]:
-    """
-    Update to transaction
-    """
-    return {
-        "description": "Test Case 1 Updated",
-        "amount": 200.00,
-    }
+def test_filter_exact_amt(client: APIClient, txn_factory: dict) -> None:
+    """Test Case: Filter by exact amount"""
+    target_amt = 500.00
+    resp = post_txn(client, txn_factory(amount=target_amt, description="Test"))
+    resp = post_txn(client, txn_factory(amount=123.46))
+    resp = post_txn(client, txn_factory(amount=target_amt, category="Test"))
+    exact_amt_filter_url = reverse("txn-list") + f"?amount={target_amt}"
+    resp = client.get(exact_amt_filter_url)
+    assert resp.status_code == 200
+    assert all(float(data["amount"]) == target_amt for data in resp.data)
+    assert len(resp.data) == 2
 
 
-def format_resp_data(resp_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Input response data and format to match original data
-    """
-    formatted_resp_data = deepcopy(resp_data)
-    formatted_resp_data["amount"] = f"{resp_data["amount"]:.2f}"
-    formatted_resp_data["date"] = date.today().strftime("%Y-%m-%d")
-    formatted_resp_data["date_of_input"] = date.today().strftime("%Y-%m-%d")
-    return formatted_resp_data
+def test_filter_gte_amt(client: APIClient, txn_factory: dict) -> None:
+    """Test Case: Filter by greater than or equal to amount"""
+    gte_amt = 500
+    resp = post_txn(client, txn_factory(amount=100.00))
+    resp = post_txn(client, txn_factory(amount=gte_amt))
+    resp = post_txn(client, txn_factory(amount=1000.00))
+    exact_amt_filter_url = reverse("txn-list") + f"?amount__gte={gte_amt}"
+    resp = client.get(exact_amt_filter_url)
+    assert resp.status_code == 200
+    assert all(float(data["amount"]) >= gte_amt for data in resp.data)
+    assert len(resp.data) == 2
 
 
-def test_txn_api(api_client: APIClient, user, txn_case_mod: Dict[str, Any], db):
-    """
-    Test the txn CRUD API and summary API
+def test_filter_lte_amt(client: APIClient, txn_factory: dict) -> None:
+    """Test Case: Filter by less than amount"""
+    lte_amt = 500.00
+    resp = post_txn(client, txn_factory(amount=100.00))
+    resp = post_txn(client, txn_factory(amount=lte_amt))
+    resp = post_txn(client, txn_factory(amount=1000.00))
+    exact_amt_filter_url = reverse("txn-list") + f"?amount__lte={lte_amt}"
+    resp = client.get(exact_amt_filter_url)
+    assert resp.status_code == 200
+    assert all(float(data["amount"]) <= lte_amt for data in resp.data)
+    assert len(resp.data) == 2
 
-    Test:
-        1. POST single txn
-        2. GET txn from #1
-        3. Update txn from #1
-        4. POST another single txn
-        5. GET summary of txn from db
 
-    Args:
-        api_client (APIClient): The API client fixture for making HTTP requests.
-        txn_case_mod (Dict[str, Any]): The modifications of test_txn_1
-        db: The database fixture for interacting with the test database.
-    """
-    signup_url = reverse("signup")
-    user_info = {"username": "test", "password": "password"}
-    response = api_client.post(signup_url, data=user_info, format="json")
-    assert response.status_code == 201, f"Error code: {response.data}"
+def test_filter_exact_date(client: APIClient, txn_factory: dict, test_dates) -> None:
+    """Test Case: Filter by exact date"""
+    resp = post_txn(client, txn_factory(date=test_dates["today"]))
+    resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
+    resp = post_txn(client, txn_factory(date=test_dates["yesterday"], amount=1.00))
+    resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
+    exact_date_filter_url = reverse("txn-list") + f"?date={test_dates["yesterday"]}"
+    resp = client.get(exact_date_filter_url)
+    assert resp.status_code == 200
+    assert all(test_dates["yesterday"] == data["date"] for data in resp.data)
+    assert len(resp.data) == 2
 
-    login = api_client.login(username="testuser", password="password")
-    assert login is True
-    # Test posting a txn from today to db
-    today = date.today()
-    before_today = date(2025, 3, 20)
-    end_date = today.strftime("%Y-%m-%d")
-    start_date = before_today.strftime("%Y-%m-%d")
-    test_txn_1 = {
-        "date": today,
-        "description": "Test Case 1",
-        "amount": 100.30,
-        "category": "Test",
-        "source": "Manual",
-        "source_name": "User Input",
-        "date_of_input": today,
-    }
-    url = reverse("txn-list")
-    response = api_client.post(url, data=test_txn_1, format="json")
 
-    assert response.status_code == 201, f"Error code: {response.data}"
-    assert response.data == {
-        "id": 1,
-        "date": end_date,
-        "description": "Test Case 1",
-        "amount": "100.30",
-        "category": "Test",
-        "source": "Manual",
-        "source_name": "User Input",
-        "date_of_input": end_date,
-    }
-    # give test_txn_1 the id assigned by db
-    test_txn_1["id"] = response.data["id"]
-
-    # Test updating txn
-    update_txn_url = reverse("txn-detail", kwargs={"pk": test_txn_1["id"]})
-    response = api_client.patch(update_txn_url, data=txn_case_mod, format="json")
-    updated_txn = {**test_txn_1, **txn_case_mod}
-    assert response.data == format_resp_data(updated_txn)
-    assert response.status_code == 200, f"Error code: {response.data}"
-
-    # Add another test_txn
-    test_txn_2 = {
-        "date": today,
-        "description": "Test Case 2",
-        "amount": 123.45,
-        "category": "Test2",
-        "source": "Manual",
-        "source_name": "User Input",
-        "date_of_input": today,
-    }
-    url = reverse("txn-list")
-    response = api_client.post(url, data=test_txn_2, format="json")
-
-    assert response.status_code == 201
-
-    # Test getting bulk transactions
-    bulk_txn_url = reverse("txn-list")
-    response = api_client.get(bulk_txn_url)
-
-    # Test getting the summary data
-    summary_url = reverse(
-        "summary", kwargs={"start_date": start_date, "end_date": end_date}
+def test_filter_gte_date(client: APIClient, txn_factory: dict, test_dates) -> None:
+    """Test Case: Filter by greater date"""
+    resp = post_txn(client, txn_factory(date=test_dates["today"]))
+    resp = post_txn(client, txn_factory(date=test_dates["today"]))
+    resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
+    resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
+    exact_date_filter_url = (
+        reverse("txn-list") + f"?date__gte={test_dates["yesterday"]}"
     )
-    response = api_client.get(summary_url)
-    assert response.status_code == 200, f"Error code: {response.data}"
-    delete_url = reverse("txn-detail", kwargs={"pk": test_txn_1["id"]})
-    response = api_client.delete(delete_url)
-    assert response.status_code == 204
+    resp = client.get(exact_date_filter_url)
+    assert resp.status_code == 200
+    assert all(test_dates["yesterday"] <= data["date"] for data in resp.data)
+    assert len(resp.data) == 3
 
-    response = api_client.get(delete_url)
-    assert response.status_code == 404
 
-    # Test getting the summary data
-    summary_url = reverse(
-        "summary", kwargs={"start_date": start_date, "end_date": end_date}
+def test_filter_lte_date(client: APIClient, txn_factory: dict, test_dates) -> None:
+    """Test Case: Filter by less than date"""
+    resp = post_txn(client, txn_factory(date=test_dates["today"]))
+    resp = post_txn(client, txn_factory(date=test_dates["today"]))
+    resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
+    resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
+    exact_date_filter_url = (
+        reverse("txn-list") + f"?date__lte={test_dates["yesterday"]}"
     )
-    response = api_client.get(summary_url)
-    assert response.status_code == 200, f"Error code: {response.data}"
-    assert response.data["date_range"] == [start_date, end_date]
-    # Convert total by cat amount from str to float, calc sum all cat total
-    sum_of_total_by_cat = sum(
-        float(amount) for amount in response.data["total_by_cat"].values()
-    )
-    assert float(response.data["total"]) == sum_of_total_by_cat
+    resp = client.get(exact_date_filter_url)
+    assert resp.status_code == 200
+    assert all(test_dates["yesterday"] >= data["date"] for data in resp.data)
+    assert len(resp.data) == 2
+
+    """ Test Case: Order by amount ascending"""
+    """ Test Case: Order by amount descending"""
+    """ Test Case: Order by date ascending"""
+    """ Test Case: Order by date descending"""
