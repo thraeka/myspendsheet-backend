@@ -93,11 +93,18 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+POSTGRES_DB = env("POSTGRES_DB")
+POSTGRES_USER = env("POSTGRES_USER")
+POSTGRES_PW = env("POSTGRES_PW")
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": POSTGRES_DB,
+        "USER": POSTGRES_USER,
+        "PASSWORD": POSTGRES_PW,
+        "HOST": "localhost",
+        "PORT": "5432",
     }
 }
 
@@ -146,17 +153,17 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Caching
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",  # A unique identifier for the cache
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",  # A unique identifier for the cache
         "TIMEOUT": 1800,  # Cache timeout in seconds (30 minutes)
         "OPTIONS": {
-            "MAX_ENTRIES": 1000,  # Limit the number of cache entries
-            "CULL_FREQUENCY": 3,  # Remove 1/3 of entries when max is reached
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     }
 }
 
 # CORS
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://myspendsheet.com",
@@ -164,10 +171,12 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
-    "Authorization",
+    "authorization",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 # Simple JWT settings
-SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(hours=24)}
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
+}
