@@ -23,8 +23,9 @@ jobs:
         ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd /home/ec2-user/myspendsheet-backend
           git pull origin main
+          poetry install --no-interaction --no-ansi
           cd myspendsheet
-          python manage.py makemigrations
-          python manage.py migrate
+          poetry run python manage.py makemigrations
+          poetry run python manage.py migrate
           sudo systemctl restart gunicorn
         EOF
