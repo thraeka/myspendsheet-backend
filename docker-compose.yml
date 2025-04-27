@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:13  # Prebuilt Postgres image
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  redis:
+    image: redis:6      # Prebuilt Redis image
+  web:
+    build:              # Build myspendsheet backend image
+      context: ./
+      dockerfile: ./Dockerfile
+    depends_on:
+      - db
+      - redis
+    environment:
+      DOCKERIZED: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/myspendsheet-backend:cached
