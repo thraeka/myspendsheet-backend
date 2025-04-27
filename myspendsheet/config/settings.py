@@ -25,6 +25,7 @@ env = environ.Env()
 env.read_env(os.path.join(BASE_DIR, ".env"))
 OPENAI_API_KEY = env("OPENAI_API_KEY")
 SECRET_KEY = env("SECRET_KEY")
+DOCKERIZED = os.getenv("DOCKERIZED", "false").lower() == "true"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -103,7 +104,7 @@ DATABASES = {
         "NAME": POSTGRES_DB,
         "USER": POSTGRES_USER,
         "PASSWORD": POSTGRES_PW,
-        "HOST": "localhost",
+        "HOST": "db" if DOCKERIZED else "localhost",
         "PORT": "5432",
     }
 }
@@ -151,10 +152,11 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Caching
+HOST = "redis" if DOCKERIZED else "localhost"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",  # A unique identifier for the cache
+        "LOCATION": f"redis://{HOST}:6379/0",  # A unique identifier for the cache
         "TIMEOUT": 1800,  # Cache timeout in seconds (30 minutes)
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
