@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Callable
+from typing import Callable, Union
 
 import pytest
 from django.core.cache import cache
@@ -31,7 +31,7 @@ def end_date() -> str:
 
 
 @pytest.fixture
-def txn(start_date: str, end_date: str) -> dict[str, str | float]:
+def txn(start_date: str, end_date: str) -> dict[str, Union[str, float]]:
     """Txn data used throughout tests"""
     return {
         "date": random_date(start_date, end_date),
