@@ -1,0 +1,71 @@
+name: Run integration and unit tests
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:13
+        env:
+          POSTGRES_DB: "${{ secrets.POSTGRES_DB }}"
+          POSTGRES_USER: "${{ secrets.POSTGRES_USER }}"
+          POSTGRES_PASSWORD: "${{ secrets.POSTGRES_PW }}"
+        ports:
+          - 5432:5432 # Expose to the host
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:6
+        ports:
+          - 6379:6379 # Expose to the host
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.9'
+
+    - name: Install poetry
+      run: | 
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH  # Add Poetry to PATH
+
+    - name: Install dependencies
+      run: |
+        poetry install
+
+    - name: Reconstruct .env file
+      working-directory: ./myspendsheet-backend/myspendsheet
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+        echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+        echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+        echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
+        echo "POSTGRES_PW=${{ secrets.POSTGRES_PW }}" >> .env
+
+    - name: Run migrations      
+      working-directory: ./myspendsheet-backend/myspendsheet
+      run: |
+        poetry run python manage.py makemigrations
+        poetry run python manage.py migrate
+
+    - name: Run tests
+      working-directory: ./myspendsheet-backend
+      run: poetry run pytest
