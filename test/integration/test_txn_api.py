@@ -62,7 +62,7 @@ def test_filter_exact_date(
     resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
     resp = post_txn(client, txn_factory(date=test_dates["yesterday"], amount=1.00))
     resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
-    exact_date_filter_url = reverse("txn-list") + f"?date={test_dates["yesterday"]}"
+    exact_date_filter_url = reverse("txn-list") + f"?date={test_dates['yesterday']}"
     resp = client.get(exact_date_filter_url)
     assert resp.status_code == 200
     assert all(test_dates["yesterday"] == data["date"] for data in resp.data)
@@ -77,7 +77,7 @@ def test_filter_gte_date(
     resp = post_txn(client, txn_factory(date=test_dates["today"]))
     resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
     resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
-    gte_date_url = reverse("txn-list") + f"?date__gte={test_dates["yesterday"]}"
+    gte_date_url = reverse("txn-list") + f"?date__gte={test_dates['yesterday']}"
     resp = client.get(gte_date_url)
     assert resp.status_code == 200
     assert all(test_dates["yesterday"] <= data["date"] for data in resp.data)
@@ -92,7 +92,7 @@ def test_filter_lte_date(
     resp = post_txn(client, txn_factory(date=test_dates["today"]))
     resp = post_txn(client, txn_factory(date=test_dates["yesterday"]))
     resp = post_txn(client, txn_factory(date=test_dates["week_ago"]))
-    lte_date_url = reverse("txn-list") + f"?date__lte={test_dates["yesterday"]}"
+    lte_date_url = reverse("txn-list") + f"?date__lte={test_dates['yesterday']}"
     resp = client.get(lte_date_url)
     assert resp.status_code == 200
     assert all(test_dates["yesterday"] >= data["date"] for data in resp.data)
