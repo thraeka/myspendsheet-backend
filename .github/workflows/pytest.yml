@@ -52,7 +52,7 @@ jobs:
         poetry install
 
     - name: Reconstruct .env file
-      working-directory: ./myspendsheet-backend/myspendsheet
+      working-directory: ./myspendsheet
       run: |
         echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
         echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
@@ -61,11 +61,10 @@ jobs:
         echo "POSTGRES_PW=${{ secrets.POSTGRES_PW }}" >> .env
 
     - name: Run migrations      
-      working-directory: ./myspendsheet-backend/myspendsheet
+      working-directory: ./myspendsheet
       run: |
         poetry run python manage.py makemigrations
         poetry run python manage.py migrate
 
     - name: Run tests
-      working-directory: ./myspendsheet-backend
       run: poetry run pytest
